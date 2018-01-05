@@ -7,6 +7,8 @@ from tkinter import ttk
 from tkinter import filedialog, messagebox
 from functools import partial
 
+import cProfile
+
 __author__ = "Nate Fehrenbach"
 
 
@@ -36,7 +38,7 @@ class pvsk_gui:
         self.mainframe = self.initialize_rootframe(self.canvas)
         self.mainframe.bind('<Configure>', self.on_configure)
         self.canvas.create_window((0, 0), window=self.mainframe, anchor='nw')
-        # Naming lists, note that they are modified
+        # Naming lists, note that they are modified     # (Note from Mark): Wouldn't it be just as easy to define these at insertion time?
         self.name_list = ["name_" + str(a+1) for a in range(run_num)]
         self.beg_list = ["begin_" + str(x+1) for x in range(run_num)]
         self.end_list = ["end_" + str(y+1) for y in range(run_num)]
@@ -53,6 +55,12 @@ class pvsk_gui:
         self.labels = self.init_labels()
         self.drops = self.init_drops()
         self.checks = self.init_chk()
+        #print('init_string_vars took: '+str(timeit.timeit('self.string_vars = self.init_string_vars()', number = 1, globals={"self":self})))
+        #print('init_buttons took: '+str(timeit.timeit('self.buttons = self.init_buttons()', number = 1, globals={"self":self})))
+        #print('init_fields took: '+str(timeit.timeit('self.fields = self.init_fields()', number = 1, globals={"self":self})))
+        #print('init_labels took: '+str(timeit.timeit('self.labels = self.init_labels()', number = 1, globals={"self":self})))
+        #print('init_drops took: '+str(timeit.timeit('self.drops = self.init_drops()', number = 1, globals={"self":self})))
+        #print('init_chk took: '+str(timeit.timeit('self.checks = self.init_chk()', number = 1, globals={"self":self})))
         # Place gui objects
         self.place_objects()
 
@@ -167,6 +175,7 @@ class pvsk_gui:
               'empty': ttk.Label(self.mainframe, text=""),
               'empty2': ttk.Label(self.mainframe, text="Projected\nAnneal\nCompletion"),
               'quality': ttk.Label(self.mainframe, text="Quality:"),
+              'quality2': ttk.Label(self.mainframe, text="Next Layer\nQuality:"),
               'note': ttk.Label(self.mainframe, text="Notes:"),
               'b_lock': ttk.Label(self.mainframe, text="Begin\nUnlocked\n/Locked"),
               'e_lock': ttk.Label(self.mainframe, text="End\nUnlocked\n/Locked")}
@@ -199,6 +208,10 @@ class pvsk_gui:
             dd[qual] = ttk.Combobox(self.mainframe, textvariable=self.string_vars[qual],
                                     values=quality, state='readonly', width=10)
             dd[qual].set(quality[0])
+            qual2 = "qual2_"+(qual.split("_")[1])
+            dd[qual2] = ttk.Combobox(self.mainframe, textvariable=StringVar(),
+                                    values=quality, state='readonly', width=10)
+            dd[qual2].set(quality[0])
         return dd
 
     def init_chk(self) -> dict:
@@ -232,7 +245,8 @@ class pvsk_gui:
         self.labels['empty2'].grid(column=4, row=5)
         self.labels['b_lock'].grid(column=3, row=5)
         self.labels['quality'].grid(column=7, row=5)
-        self.labels['note'].grid(column=8, row=5)
+        self.labels['quality2'].grid(column=8, row=5)
+        self.labels['note'].grid(column=9, row=5)
         self.labels['e_lock'].grid(column=6, row=5)
         start = 5
         col = 0
@@ -316,14 +330,17 @@ class pvsk_gui:
         # Column 6b
         col += 1
         for key, gui in self.drops.items():
-            if key.find("qual") != -1:
+            if key.find("qual_") != -1:
                 gui.grid(column=col, row=2*n)
+                key2 = key.split("_")
+                key2 = key2[0]+"2_"+key2[1]
+                self.drops[key2].grid(column=col+1, row=2*n)
                 n += 1
         n = start
         # Column 7b
         # col += 1
         # Column 8b
-        col += 1
+        col += 2
         for key, gui in self.fields.items():
             if key.find("note") != -1:
                 gui.grid(column=col, row=2*n)
@@ -442,6 +459,7 @@ class pvsk_gui:
         if string.find("begin") != -1:
             self.string_vars["chk_on_" + num].set(True)
             self.string_vars["proj_" + num].set(self.frmt(current_time + datetime.timedelta(minutes=60)))
+            self.labels["proj_"+num].after(3300000, self.labels["proj_"+num].config,{"foreground":"#F00"})      # Turns the label red after 55 minutes. Likely not the best way....
             self.string_vars["chk_off_" + num].set(False)
             self.lock("chk_on_" + num)
             self.lock("chk_off_" + num)
@@ -502,7 +520,7 @@ class pvsk_gui:
         Submit the collected data with defaults for unedited fields
         :return: None
         """
-        confirm = messagebox.askokcancel("Submit", "Are you sure you wnat to submit this form?", icon='question')
+        confirm = messagebox.askokcancel("Submit", "Are you sure you want to submit this form?", icon='question')
         # print(confirm)
         # if confirm:
             # print("It's a bool")
@@ -522,14 +540,15 @@ class pvsk_gui:
         begin = [self.string_vars[x].get() for x in self.beg_list]
         end = [self.string_vars[x].get() for x in self.end_list]
         qual = [self.string_vars[x].get() for x in self.qual_list]
+        qual2 = [self.drops["qual2_"+str(x)].get() for x in range(1,run_num+1)]
         note = [self.string_vars[x].get() for x in self.note_list]
         order = self.get_order(names, begin)
         try:
             new_file = open(self.save_path, mode='w')
-            new_file.write("Substrate,PVSK Order,Pass/Fail,On,Off,Crater,Point Defect,Notes\n")
+            new_file.write("Substrate,PVSK Order,Pass/Fail,On,Off,Crater,Point Defect,Notes,HTL_qual\n")
             for n in range(len(names)):
                 line = str(names[n]) + "," + str(order[n]) + "," + str(qual[n]) + "," + str(begin[n]) + "," + \
-                       str(end[n]) + ",,," + str(note[n]) + "\n"
+                       str(end[n]) + ",,," + str(note[n]) + "," + str(qual2[n]) + "\n"
                 new_file.write(line)
             new_file.close()
             messagebox.showinfo("Success!", "Your form was saved successfully!")
@@ -537,7 +556,7 @@ class pvsk_gui:
             messagebox.showerror("Error!", "File permission error, try closing the file and trying again!")
             self.write_csv()
 
-    def get_order(self, names: list, timestamps: list) -> list:
+    def get_order(self, names: list, timestamps: list) -> list:  # (Note from Mark) This function is confusing and seems inefficient.
         """
         Get the corresponding index for the order of the names as they are related to the timestamps
         :param names: list, of substrate names
@@ -589,3 +608,4 @@ class pvsk_gui:
 if __name__ == "__main__":
     gui = pvsk_gui()
     gui.run()
+    #cProfile.run('gui.run()')
