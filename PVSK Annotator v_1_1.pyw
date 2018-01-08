@@ -149,6 +149,15 @@ class pvsk_gui:
         """
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
+    # https://stackoverflow.com/questions/4140437/interactively-validating-entry-widget-content-in-tkinter#comment4471062_4140988
+    def validateTime(self, d, i, P, s, S, v, V, W):
+        example = "2018/01/01 15:07:58"
+        try:
+            datetime.datetime.strptime(P+example[len(P):],"%Y/%m/%d %H:%M:%S")
+            return True
+        except:
+            return False
+
     def init_fields(self) -> dict:
         """
         Initialize the entry fields and put them into a dict
@@ -156,8 +165,14 @@ class pvsk_gui:
         """
         fd = {'experiment': ttk.Entry(self.mainframe, textvariable=self.string_vars['experiment'], width=5)}
         fd['experiment'].bind('<Key>', self.set_series)
+        validate = (self.root.register(self.validateTime),
+                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         for note in self.note_list:
             fd[note] = ttk.Entry(self.mainframe, textvariable=self.string_vars[note], width=15)
+        for begin in self.beg_list:
+            fd[begin] = ttk.Entry(self.mainframe, textvariable=self.string_vars[begin], width=20, validate="key", validatecommand=validate)
+        for end in self.end_list:
+            fd[end] = ttk.Entry(self.mainframe, textvariable=self.string_vars[end], width=20, validate="key", validatecommand=validate)
         return fd
 
     def init_labels(self) -> dict:
@@ -181,10 +196,10 @@ class pvsk_gui:
               'e_lock': ttk.Label(self.mainframe, text="End\nUnlocked\n/Locked")}
         for n in range(36):
             ld["time" + str(n)] = ttk.Label(self.mainframe, text="Timestamps:\t")
-        for begin in self.beg_list:
-            ld[begin] = ttk.Label(self.mainframe, textvariable=self.string_vars[begin], width=20)
-        for end in self.end_list:
-            ld[end] = ttk.Label(self.mainframe, textvariable=self.string_vars[end], width=20)
+        #for begin in self.beg_list:
+        #    ld[begin] = ttk.Label(self.mainframe, textvariable=self.string_vars[begin], width=20)
+        #for end in self.end_list:
+        #    ld[end] = ttk.Label(self.mainframe, textvariable=self.string_vars[end], width=20)
         for name in self.name_list:
             ld[name] = ttk.Label(self.mainframe, textvariable=self.string_vars[name], width=7)
         for proj in self.proj_list:
@@ -273,7 +288,7 @@ class pvsk_gui:
         n = start
         # Column 2
         col += 1
-        for key, gui in self.labels.items():
+        for key, gui in self.fields.items():
             if key.find("begin") != -1:
                 gui.grid(column=col, row=(2 * n) + 1)
                 n += 1
@@ -309,7 +324,7 @@ class pvsk_gui:
         col += 1
         # Column 4b, odd rows
         n = start
-        for key, gui in self.labels.items():
+        for key, gui in self.fields.items():
             if key.find("end") != -1:
                 gui.grid(column=col, row=(2 * n) + 1)
                 n += 1
@@ -437,14 +452,18 @@ class pvsk_gui:
         if on:
             if not self.string_vars[name].get():
                 self.buttons["begin_" + str(num)].config(state='normal')
+                self.fields["begin_" + str(num)].config(state='normal')
             else:
                 self.buttons["begin_" + str(num)].config(state='disabled')
+                self.fields["begin_" + str(num)].config(state='disabled')
                 # print("disabled")
         else:
             if not self.string_vars[name].get():
                 self.buttons["end_" + str(num)].config(state='normal')
+                self.fields["end_" + str(num)].config(state='normal')
             else:
                 self.buttons["end_" + str(num)].config(state='disabled')
+                self.fields["end_" + str(num)].config(state='disabled')
                 # print("disabled off")
 
     def timestamp(self, string: str) -> None:
@@ -475,11 +494,12 @@ class pvsk_gui:
         :param time: datetime, to be reformatted
         :return: str
         """
-        date = str(time.year) + "/" + str(time.month) + "/" + str(time.day)
-        hour = str("%02d" % (time.hour,))
-        min = str("%02d" % (time.minute,))
-        sec = str("%02d" % (time.second,))
-        return date + " " + hour + ":" + min + ":" + sec
+        #date = str(time.year) + "/" + str(time.month) + "/" + str(time.day)
+        #hour = str("%02d" % (time.hour,))
+        #min = str("%02d" % (time.minute,))
+        #sec = str("%02d" % (time.second,))
+        #return date + " " + hour + ":" + min + ":" + sec
+        return time.strftime("%Y/%m/%d %H:%M:%S")
 
     def un_frmt(self, timestamp: str) -> datetime:
         """
