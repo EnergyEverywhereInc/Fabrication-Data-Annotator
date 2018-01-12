@@ -89,7 +89,7 @@ class pvsk_gui:
         """
         str_vr = {'date': StringVar(), 'time': StringVar(),
                   'experiment': StringVar(), "number": StringVar(),
-                  'save_loc': StringVar()}
+                  'save_loc': StringVar(), "next_layer": StringVar()}
         str_vr['save_loc'].set("C:\\")
         # Add StringVar objects for the timestamp inputs and quality inputs
         n = 0
@@ -193,7 +193,8 @@ class pvsk_gui:
               'quality2': ttk.Label(self.mainframe, text="Next Layer\nQuality:"),
               'note': ttk.Label(self.mainframe, text="Notes:"),
               'b_lock': ttk.Label(self.mainframe, text="Begin\nUnlocked\n/Locked"),
-              'e_lock': ttk.Label(self.mainframe, text="End\nUnlocked\n/Locked")}
+              'e_lock': ttk.Label(self.mainframe, text="End\nUnlocked\n/Locked"),
+              'next_layer': ttk.Label(self.mainframe, text="Next Layer:")}
         for n in range(36):
             ld["time" + str(n)] = ttk.Label(self.mainframe, text="Timestamps:\t")
         #for begin in self.beg_list:
@@ -219,6 +220,10 @@ class pvsk_gui:
         dd['number'].set(self.num_options[0])
         dd['number'].bind("<Button-1>", self.set_series)
         quality = ["", "Good", "Bad", "OK", "Pass", "Fail"]
+        nextLayers = ["", "Spiro"]
+        dd["next_layer"] = ttk.Combobox(self.mainframe, textvariable=self.string_vars["next_layer"],
+                                       values=nextLayers, width=10)
+        dd["next_layer"].set(nextLayers[1])
         for qual in self.qual_list:
             dd[qual] = ttk.Combobox(self.mainframe, textvariable=self.string_vars[qual],
                                     values=quality, state='readonly', width=10)
@@ -263,6 +268,8 @@ class pvsk_gui:
         self.labels['quality2'].grid(column=8, row=5)
         self.labels['note'].grid(column=9, row=5)
         self.labels['e_lock'].grid(column=6, row=5)
+        self.labels['next_layer'].grid(column=8, row=1)
+        self.drops['next_layer'].grid(column=8, row=2)
         start = 5
         col = 0
         # Column 0
@@ -565,10 +572,10 @@ class pvsk_gui:
         order = self.get_order(names, begin)
         try:
             new_file = open(self.save_path, mode='w')
-            new_file.write("Substrate,PVSK Order,Pass/Fail,On,Off,Crater,Point Defect,Notes,HTL_qual\n")
+            new_file.write("Substrate,PVSK Order,Pass/Fail,On,Off,Crater,Point Defect,Notes,HTL_qual,HTL_name\n")   # @TODO Not sure what to name second layer column, so named it HTL_name
             for n in range(len(names)):
                 line = str(names[n]) + "," + str(order[n]) + "," + str(qual[n]) + "," + str(begin[n]) + "," + \
-                       str(end[n]) + ",,," + str(note[n]) + "," + str(qual2[n]) + "\n"
+                       str(end[n]) + ",,," + str(note[n]) + "," + str(qual2[n]) + "," + self.drops["next_layer"].get() + "\n"
                 new_file.write(line)
             new_file.close()
             messagebox.showinfo("Success!", "Your form was saved successfully!")
